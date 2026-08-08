@@ -8,15 +8,16 @@ class DatasetService:
     def __init__(self):
         pass
 
-    def prepare_dataset(self, audio_path: str, whisper_size: str = "base", language: str = "th"):
+    def prepare_dataset(self, audio_path: str, whisper_size: str = "base", language: str = "th", norm_mode: str = "Standard (ลบช่องว่าง)"):
         try:
-            logger.info(f"Starting dataset preparation for: {audio_path} with Whisper-{whisper_size}")
+            logger.info(f"Starting dataset preparation for: {audio_path} with Whisper-{whisper_size} and {norm_mode}")
             import os
             import time
             import torch
             import torchaudio
             from transformers import pipeline
             from pythainlp.tokenize import word_tokenize
+            from pythainlp.transliterate import romanize
             import soundfile as sf
             
             workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
@@ -67,9 +68,14 @@ class DatasetService:
                     result = transcriber(chunk_path)
                     raw_text = result.get("text", "").strip()
                     
-                    # 4. Thai NLP Normalization (Remove whitespaces for TTS)
+                    # 4. Thai NLP Normalization (Remove whitespaces or Convert to Karaoke)
                     if language == "th" or any("\u0E00" <= c <= "\u0E7F" for c in raw_text):
-                        normalized_text = "".join(word_tokenize(raw_text, keep_whitespace=False))
+                        if "Karaoke" in norm_mode:
+                            # Convert to Thai Karaoke (Romanization)
+                            normalized_text = romanize(raw_text, engine="royin")
+                        else:
+                            # Standard Mode (Remove Whitespaces)
+                            normalized_text = "".join(word_tokenize(raw_text, keep_whitespace=False))
                     else:
                         normalized_text = raw_text
                         
