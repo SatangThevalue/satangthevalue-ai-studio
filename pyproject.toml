@@ -23,7 +23,15 @@ dependencies = [
     "whisperx @ git+https://github.com/m-bain/whisperX.git",
     "peft>=0.11.1",
     "bitsandbytes>=0.43.1",
-    "accelerate>=0.30.1"
+    "accelerate>=0.30.1",
+    "pydub>=0.25.1",
+    "resemble-enhance @ git+https://github.com/resemble-ai/resemble-enhance.git",
+    "silero-vad>=3.1.0",
+    "pythainlp>=4.0.0",
+    "pandas>=2.0.0",
+    "transformers>=4.30.0",
+    "onnx>=1.14.0",
+    "onnxruntime>=1.15.0"
 ]
 
 [build-system]
