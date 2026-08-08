@@ -21,15 +21,11 @@ def get_random_script():
 def download_base_model(model_name):
     import subprocess
     import os
+    from src.config import get_all_downloadable_models
     
     workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
     
-    # Map friendly names to HuggingFace repository IDs
-    repo_map = {
-        "F5-TTS Base": "SWivid/F5-TTS",
-        "CosyVoice-Base": "FunAudioLLM/CosyVoice-300M",
-        "WhisperX (Transcription)": "Systran/faster-whisper-large-v3"
-    }
+    repo_map = get_all_downloadable_models()
     
     hf_repo = repo_map.get(model_name)
     if not hf_repo:
@@ -64,7 +60,10 @@ def build_ui():
                     with gr.Column(scale=2):
                         def get_available_models():
                             import os
-                            models = ["F5-TTS Base", "CosyVoice-Base", "LoRA-Custom-Voice (Your Voice)"]
+                            from src.config import get_tts_model_names
+                            models = get_tts_model_names()
+                            models.append("LoRA-Custom-Voice (Your Voice)")
+                            
                             workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
                             ckpt_dir = f"{workspace}/checkpoints"
                             if os.path.exists(ckpt_dir):
@@ -74,7 +73,10 @@ def build_ui():
                             return gr.update(choices=models)
                             
                         with gr.Row():
-                            model_dropdown = gr.Dropdown(choices=["F5-TTS Base", "CosyVoice-Base", "LoRA-Custom-Voice (Your Voice)"], value="F5-TTS Base", label="เลือกโมเดล (Select Base Model)")
+                            from src.config import get_tts_model_names
+                            initial_models = get_tts_model_names()
+                            initial_models.append("LoRA-Custom-Voice (Your Voice)")
+                            model_dropdown = gr.Dropdown(choices=initial_models, value=initial_models[0], label="เลือกโมเดล (Select Base Model)")
                             refresh_model_btn = gr.Button("🔄 โหลด Checkpoints", size="sm")
                             refresh_model_btn.click(fn=get_available_models, inputs=[], outputs=model_dropdown)
                             
@@ -143,7 +145,9 @@ def build_ui():
                     # TAB 3: Developer & Training
                     with gr.TabItem("🧑‍💻 2.2 Training (เทรนโมเดล)"):
                         gr.Markdown("### 🧠 LoRA Fine-Tuning\nเทรนโมเดล AI ให้จดจำเสียงของคุณแบบถาวร (ต้องทำขั้นตอนที่ 2.1 เพื่อสร้าง Dataset ก่อนเสมอ)")
-                        base_model = gr.Dropdown(choices=["F5-TTS Base", "CosyVoice-Base"], value="F5-TTS Base", label="เลือกโมเดลตั้งต้น (Base Model to Train)")
+                        
+                        from src.config import get_tts_model_names
+                        base_model = gr.Dropdown(choices=get_tts_model_names(), value=get_tts_model_names()[0], label="เลือกโมเดลตั้งต้น (Base Model to Train)")
                         
                         with gr.Accordion("⚙️ ตั้งค่าขั้นสูง (Advanced Optimization)", open=True):
                             use_8bit = gr.Checkbox(label="Enable 8-bit Quantization (bitsandbytes) - ลดการกินแรมการ์ดจอ", value=True)
@@ -184,8 +188,12 @@ def build_ui():
                     # TAB 4: Model Manager
                     with gr.TabItem("📥 2.3 Model Manager"):
                         gr.Markdown("### 📥 จัดการและดาวน์โหลดโมเดล (Model Downloads)\nโหลดโมเดลหลักมาเก็บไว้ใน Google Drive ล่วงหน้า เพื่อให้รันรอบถัดไปได้ไวขึ้นโดยไม่ต้องรอโหลดซ้ำ")
+                        
+                        from src.config import get_all_downloadable_models
+                        dl_choices = list(get_all_downloadable_models().keys())
+                        
                         with gr.Row():
-                            dl_model_dropdown = gr.Dropdown(choices=["F5-TTS Base", "CosyVoice-Base", "WhisperX (Transcription)"], value="F5-TTS Base", label="เลือกโมเดลที่ต้องการดาวน์โหลด")
+                            dl_model_dropdown = gr.Dropdown(choices=dl_choices, value=dl_choices[0] if dl_choices else None, label="เลือกโมเดลที่ต้องการดาวน์โหลด")
                             dl_btn = gr.Button("⬇️ ดาวน์โหลดเข้า Google Drive", variant="primary")
                         dl_status = gr.Textbox(label="สถานะ (Status)", interactive=False)
                         
