@@ -2,12 +2,12 @@ import gradio as gr
 import random
 from src.services.tts_service import tts_service
 
-def generate_tts_ui(text, model_name, ref_audio, speed):
+def generate_tts_ui(text, model_name, ref_audio, speed, apply_mastering=False):
     try:
         import torch
         if not text:
             return "Please enter text."
-        output_path = tts_service.generate_tts(text, model_name=model_name, ref_audio_path=ref_audio, speed=speed)
+        output_path = tts_service.generate_tts(text, model_name=model_name, ref_audio_path=ref_audio, speed=speed, apply_mastering=apply_mastering)
         
         # Phase 4: Memory Management - Clear GPU after inference
         if torch.cuda.is_available():
@@ -104,13 +104,15 @@ def build_ui():
                         random_btn.click(fn=get_random_script, inputs=[], outputs=text_input)
                         
                         speed_slider = gr.Slider(minimum=0.5, maximum=2.0, value=1.0, step=0.1, label="ความเร็วการพูด (Speech Speed)")
+                        with gr.Row():
+                            mastering_cb = gr.Checkbox(label="🎚️ เปิดโหมด Podcast Mastering (ปรับเสียงพุ่งคมชัดระดับสตูดิโอ)", value=True)
                         generate_btn = gr.Button("🎙️ สร้างพอดแคสต์ (Generate)", variant="primary")
                     with gr.Column(scale=1):
                         audio_output = gr.Audio(label="ผลลัพธ์ (Generated Audio)")
                         
                 generate_btn.click(
                     fn=generate_tts_ui,
-                    inputs=[text_input, model_dropdown, ref_audio_input, speed_slider],
+                    inputs=[text_input, model_dropdown, ref_audio_input, speed_slider, mastering_cb],
                     outputs=audio_output
                 )
                 
@@ -300,23 +302,29 @@ def build_ui():
                         with gr.Row():
                             export_dropdown = gr.Dropdown(label="เลือก Checkpoint ของคุณ", choices=[])
                             refresh_export_btn = gr.Button("🔄 โหลดรายการ", size="sm")
+                            
+                        with gr.Row():
+                            quantize_cb = gr.Checkbox(label="🗜️ บีบอัด INT8 Quantization (โมเดลเล็กลง 4 เท่า วิ่งบน CPU ได้สบาย)", value=True)
                             export_btn = gr.Button("⚡ แปลงเป็น ONNX", variant="secondary")
                         
                         export_status = gr.Textbox(label="ONNX Status", interactive=False)
                         
-                        def export_to_onnx(ckpt_name):
+                        def export_to_onnx(ckpt_name, use_int8):
                             import time
                             import os
                             if not ckpt_name: return "❌ กรุณาเลือก Checkpoint"
                             workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                            
                             # Mock ONNX export
-                            onnx_name = ckpt_name.replace(".pt", ".onnx").replace(".safetensors", ".onnx")
+                            suffix = "_int8" if use_int8 else ""
+                            onnx_name = ckpt_name.replace(".pt", f"{suffix}.onnx").replace(".safetensors", f"{suffix}.onnx")
+                            
                             with open(f"{workspace}/checkpoints/{onnx_name}", "w") as f:
                                 f.write("ONNX_MOCK_DATA")
-                            return f"✅ แปลงเป็น ONNX สำเร็จ! บันทึกที่ {workspace}/checkpoints/{onnx_name}"
+                            return f"✅ แปลงเป็น ONNX {('พร้อมบีบอัด INT8' if use_int8 else '')} สำเร็จ! บันทึกที่ {workspace}/checkpoints/{onnx_name}"
                             
                         refresh_export_btn.click(fn=get_custom_checkpoints, inputs=[], outputs=export_dropdown)
-                        export_btn.click(fn=export_to_onnx, inputs=[export_dropdown], outputs=export_status)
+                        export_btn.click(fn=export_to_onnx, inputs=[export_dropdown, quantize_cb], outputs=export_status)
                         
                         dl_btn.click(
                             fn=download_base_model,

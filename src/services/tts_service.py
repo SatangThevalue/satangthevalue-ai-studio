@@ -15,7 +15,7 @@ class F5TTSService:
         self.is_loaded = True
         return True
 
-    def generate_tts(self, text: str, model_name: str = "F5-TTS Base", ref_audio_path: str = None, speed: float = 1.0) -> str:
+    def generate_tts(self, text: str, model_name: str = "F5-TTS Base", ref_audio_path: str = None, speed: float = 1.0, apply_mastering: bool = False) -> str:
         # Create a safe output path in the workspace
         workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
         output_dir = f"{workspace_dir}/outputs"
@@ -45,6 +45,18 @@ class F5TTSService:
             with open(output_path, "wb") as f:
                 f.write(b"RIFF\x00\x00\x00\x00WAVEfmt ")
             logger.info(f"TTS generated successfully at {output_path}")
+            
+            # 🌟 Post-Processing Audio Quality Improvement (Mastering)
+            if apply_mastering:
+                logger.info("Applying Podcast Mastering to output audio...")
+                try:
+                    from src.services.audio_service import audio_enhancer
+                    # In a real scenario, this applies EQ and LUFS normalization to the generated file
+                    # We pass output_path as both input and output to overwrite it with mastered version
+                    audio_enhancer.process_audio(output_path, output_path)
+                except Exception as ex:
+                    logger.warning(f"Mastering failed (Mock environment): {str(ex)}")
+            
             return output_path
             
         except subprocess.CalledProcessError as e:
@@ -52,10 +64,6 @@ class F5TTSService:
             return None
         except FileNotFoundError:
             logger.warning(f"CLI {cli_command} not found. Mocking {model_name} generation for: '{text}'")
-            return output_path
-            time.sleep(2)
-            with open(output_path, "wb") as f:
-                f.write(b"RIFF\x00\x00\x00\x00WAVEfmt ")
             return output_path
 
 tts_service = F5TTSService()
