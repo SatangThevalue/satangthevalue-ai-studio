@@ -156,11 +156,16 @@ def build_ui():
                             with gr.Column():
                                 mic_input = gr.Audio(sources=["microphone"], type="filepath", label="อัดเสียงผ่านไมค์ (Record)")
                                 file_input = gr.File(label="หรืออัปโหลดไฟล์ (Upload .m4a, .mp3, .wav)", file_types=["audio"])
+                                
+                                with gr.Accordion("⚙️ ตั้งค่าขั้นสูง (Auto-Transcription Settings)", open=False):
+                                    whisper_size = gr.Dropdown(choices=["tiny", "base", "small", "medium"], value="base", label="ขนาดของ Whisper (ยิ่งเล็กยิ่งไว)")
+                                    whisper_lang = gr.Dropdown(choices=["th", "en", "auto"], value="th", label="บังคับภาษา (Language)")
+                                    
                                 process_btn = gr.Button("🚀 ล้างเสียงและสร้าง Dataset (Process & Save)", variant="primary")
                             with gr.Column():
                                 status_output = gr.Textbox(label="สถานะการทำงาน (Status)", interactive=False, lines=4)
                                 
-                        def process_and_enhance(mic_file, upload_file):
+                        def process_and_enhance(mic_file, upload_file, w_size, w_lang):
                             try:
                                 import torch
                                 input_file = upload_file if upload_file else mic_file
@@ -183,7 +188,7 @@ def build_ui():
                                 workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
                                 final_input_for_whisper = f"{workspace_dir}/{output_path}"
                                 
-                                success_ds, msg_ds = dataset_service.prepare_dataset(final_input_for_whisper)
+                                success_ds, msg_ds = dataset_service.prepare_dataset(final_input_for_whisper, whisper_size=w_size, language=w_lang)
                                 
                                 # Phase 4: Memory Management - Clear GPU after whisper processing
                                 if torch.cuda.is_available():
@@ -195,7 +200,7 @@ def build_ui():
         
                         process_btn.click(
                             fn=process_and_enhance,
-                            inputs=[mic_input, file_input],
+                            inputs=[mic_input, file_input, whisper_size, whisper_lang],
                             outputs=status_output
                         )
         

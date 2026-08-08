@@ -8,9 +8,9 @@ class DatasetService:
     def __init__(self):
         pass
 
-    def prepare_dataset(self, audio_path: str):
+    def prepare_dataset(self, audio_path: str, whisper_size: str = "base", language: str = "th"):
         try:
-            logger.info(f"Starting dataset preparation for: {audio_path}")
+            logger.info(f"Starting dataset preparation for: {audio_path} with Whisper-{whisper_size}")
             import os
             import time
             import torch
@@ -31,11 +31,22 @@ class DatasetService:
             (get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks) = utils
             
             wav = read_audio(audio_path, sampling_rate=16000)
-            speech_timestamps = get_speech_timestamps(wav, model_vad, sampling_rate=16000)
+            # You can tweak VAD parameters here (e.g., threshold, min_speech_duration_ms)
+            speech_timestamps = get_speech_timestamps(wav, model_vad, sampling_rate=16000, threshold=0.5, min_speech_duration_ms=250)
             
             # 2. Setup Whisper for Transcription
-            logger.info("Loading Whisper Model...")
-            transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=0 if device=="cuda" else -1)
+            logger.info(f"Loading Whisper Model (openai/whisper-{whisper_size})...")
+            # Using generate_kwargs to force language if specified
+            generate_kwargs = {}
+            if language != "auto":
+                generate_kwargs["language"] = language
+                
+            transcriber = pipeline(
+                "automatic-speech-recognition", 
+                model=f"openai/whisper-{whisper_size}", 
+                device=0 if device=="cuda" else -1,
+                generate_kwargs=generate_kwargs
+            )
             
             metadata_path = f"{dataset_dir}/metadata.csv"
             
@@ -57,7 +68,7 @@ class DatasetService:
                     raw_text = result.get("text", "").strip()
                     
                     # 4. Thai NLP Normalization (Remove whitespaces for TTS)
-                    if any("\u0E00" <= c <= "\u0E7F" for c in raw_text): # If contains Thai
+                    if language == "th" or any("\u0E00" <= c <= "\u0E7F" for c in raw_text):
                         normalized_text = "".join(word_tokenize(raw_text, keep_whitespace=False))
                     else:
                         normalized_text = raw_text
@@ -71,7 +82,7 @@ class DatasetService:
                 torch.cuda.empty_cache()
                 
             logger.info(f"Dataset generated successfully. {total_chunks} chunks written.")
-            return True, f"✅ หั่นไฟล์และถอดข้อความสำเร็จ! ได้ {total_chunks} ท่อนเสียง พร้อมบันทึกลง metadata.csv"
+            return True, f"✅ หั่นไฟล์และถอดข้อความสำเร็จ (Whisper-{whisper_size})! ได้ {total_chunks} ท่อนเสียง"
         except Exception as e:
             logger.error(f"Dataset preparation failed: {str(e)}", exc_info=True)
             return False, f"❌ Error generating dataset: {str(e)}"
