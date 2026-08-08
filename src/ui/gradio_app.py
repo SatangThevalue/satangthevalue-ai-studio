@@ -184,7 +184,8 @@ def build_ui():
                                 import time
                                 import os
                                 
-                                output_path = f"processed_audio/enhanced_{int(time.time())}.wav"
+                                workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                                output_path = f"{workspace_dir}/processed_audio/enhanced_{int(time.time())}.wav"
                                 
                                 # 1. Enhance Audio
                                 success, msg = audio_enhancer.process_audio(input_file, output_path)
@@ -192,11 +193,8 @@ def build_ui():
                                     return msg
                                     
                                 # 2. Slice and Transcribe (Prepare for Fine-Tuning)
-                                workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
-                                final_input_for_whisper = f"{workspace_dir}/{output_path}"
-                                
                                 success_ds, msg_ds = dataset_service.prepare_dataset(
-                                    final_input_for_whisper, 
+                                    output_path, 
                                     whisper_size=w_size, 
                                     language=w_lang,
                                     norm_mode=t_norm
