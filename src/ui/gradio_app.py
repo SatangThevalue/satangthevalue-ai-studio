@@ -41,17 +41,19 @@ def download_base_model(model_name):
         return f"❌ ไม่พบข้อมูล Repository สำหรับโมเดล {model_name}"
         
     try:
-        # Run huggingface-cli to download the snapshot
-        # This will automatically respect the HF_HOME environment variable (Google Drive)
-        cmd = ["huggingface-cli", "download", hf_repo]
+        from huggingface_hub import snapshot_download
         
-        # We use subprocess.Popen to run it synchronously and capture output
-        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        target_dir = f"{workspace}/checkpoints/{model_name}"
+        os.makedirs(target_dir, exist_ok=True)
         
-        if process.returncode == 0:
-            return f"✅ สำเร็จ! ดาวน์โหลดโมเดล {model_name} จาก HuggingFace ลงใน Google Drive ({workspace}/models_cache) เรียบร้อยแล้วของจริง!\n\nLog: {process.stdout[:200]}..."
-        else:
-            return f"❌ เกิดข้อผิดพลาดในการดาวน์โหลด {model_name}:\n{process.stderr}"
+        # Download the model directly via Python API
+        downloaded_path = snapshot_download(
+            repo_id=hf_repo,
+            local_dir=target_dir,
+            local_dir_use_symlinks=False
+        )
+        
+        return f"✅ สำเร็จ! ดาวน์โหลดโมเดล {model_name} จาก HuggingFace ลงใน {downloaded_path} เรียบร้อยแล้ว!"
             
     except Exception as e:
         return f"❌ ระบบขัดข้อง: {str(e)}\nกรุณาตรวจสอบว่ามี Library 'huggingface_hub' ติดตั้งอยู่หรือไม่"
