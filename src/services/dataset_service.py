@@ -9,56 +9,71 @@ class DatasetService:
         pass
 
     def prepare_dataset(self, audio_path: str):
-        """
-        Dynamic Auto-Transcription Pipeline
-        1. silero-vad: Detect Voice Activity and chunk audio exactly where voice is present.
-        2. whisperX: Word-level timestamp transcription (highly accurate for alignment).
-        3. pythainlp: Normalize Thai text (remove spaces, fix spelling) before TTS training.
-        4. pandas: Compile to metadata.csv.
-        """
         try:
             logger.info(f"Starting dataset preparation for: {audio_path}")
             import os
             import time
+            import torch
+            import torchaudio
+            from transformers import pipeline
+            from pythainlp.tokenize import word_tokenize
+            import soundfile as sf
             
             workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
             dataset_dir = f"{workspace_dir}/dataset"
             os.makedirs(dataset_dir, exist_ok=True)
             
-            # --- Architectural Blueprint for Dynamic Pipeline ---
-            # 1. VAD Chunking:
-            # model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')
-            # speech_timestamps = get_speech_timestamps(audio, model, sampling_rate=16000)
+            device = "cuda" if torch.cuda.is_available() else "cpu"
             
-            # 2. WhisperX Transcription:
-            # import whisperx
-            # model = whisperx.load_model("large-v3", device, compute_type="float16")
-            # result = model.transcribe(audio_path, batch_size=16)
+            # 1. VAD Chunking (using silero-vad)
+            logger.info("Loading Silero VAD...")
+            model_vad, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', force_reload=False, onnx=False)
+            (get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks) = utils
             
-            # 3. Thai NLP Normalization:
-            # from pythainlp.tokenize import word_tokenize
-            # text = "".join(word_tokenize(result["segments"][0]["text"], keep_whitespace=False))
+            wav = read_audio(audio_path, sampling_rate=16000)
+            speech_timestamps = get_speech_timestamps(wav, model_vad, sampling_rate=16000)
             
-            # 4. Pandas Metadata Generation:
-            # import pandas as pd
-            # df = pd.DataFrame([{"file": chunk_name, "text": text}])
-            # df.to_csv("metadata.csv", sep="|", index=False, header=False)
-            
-            # --- MOCK IMPLEMENTATION (To avoid heavy GPU download during Demo) ---
-            chunk_name = f"chunk_{int(time.time())}_1.wav"
-            chunk_path = f"{dataset_dir}/{chunk_name}"
-            
-            import shutil
-            shutil.copy(audio_path, chunk_path)
+            # 2. Setup Whisper for Transcription
+            logger.info("Loading Whisper Model...")
+            transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=0 if device=="cuda" else -1)
             
             metadata_path = f"{dataset_dir}/metadata.csv"
-            with open(metadata_path, "a", encoding="utf-8") as f:
-                f.write(f"{chunk_name}|สวัสดีครับ นี่คือข้อความทดสอบสำหรับการเทรนพอดแคสต์\n")
             
-            logger.info(f"Dataset generated successfully. Metadata updated.")
-            return True, f"หั่นไฟล์และถอดข้อความสำเร็จ (ทดสอบ)! ได้ 1 chunks ลงใน {dataset_dir}"
+            total_chunks = 0
+            with open(metadata_path, "a", encoding="utf-8") as f:
+                for i, segment in enumerate(speech_timestamps):
+                    # Extract chunk
+                    start_sample = segment['start']
+                    end_sample = segment['end']
+                    chunk_audio = wav[start_sample:end_sample]
+                    
+                    # Save chunk to disk
+                    chunk_name = f"chunk_{int(time.time())}_{i}.wav"
+                    chunk_path = f"{dataset_dir}/{chunk_name}"
+                    torchaudio.save(chunk_path, chunk_audio.unsqueeze(0), 16000)
+                    
+                    # 3. Transcribe Chunk
+                    result = transcriber(chunk_path)
+                    raw_text = result.get("text", "").strip()
+                    
+                    # 4. Thai NLP Normalization (Remove whitespaces for TTS)
+                    if any("\u0E00" <= c <= "\u0E7F" for c in raw_text): # If contains Thai
+                        normalized_text = "".join(word_tokenize(raw_text, keep_whitespace=False))
+                    else:
+                        normalized_text = raw_text
+                        
+                    # Write to metadata
+                    if normalized_text:
+                        f.write(f"{chunk_name}|{normalized_text}\n")
+                        total_chunks += 1
+            
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+            logger.info(f"Dataset generated successfully. {total_chunks} chunks written.")
+            return True, f"✅ หั่นไฟล์และถอดข้อความสำเร็จ! ได้ {total_chunks} ท่อนเสียง พร้อมบันทึกลง metadata.csv"
         except Exception as e:
             logger.error(f"Dataset preparation failed: {str(e)}", exc_info=True)
-            return False, f"Error generating dataset: {str(e)}"
+            return False, f"❌ Error generating dataset: {str(e)}"
 
 dataset_service = DatasetService()

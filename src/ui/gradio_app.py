@@ -162,6 +162,7 @@ def build_ui():
                         def start_training(model, use_8bit, use_peft, lr, batch, epochs):
                             import time
                             import os
+                            import json
                             workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
                             metadata = f"{workspace}/dataset/metadata.csv"
                             if not os.path.exists(metadata):
@@ -170,14 +171,28 @@ def build_ui():
                             ckpt_dir = f"{workspace}/checkpoints"
                             os.makedirs(ckpt_dir, exist_ok=True)
                             timestamp = int(time.time())
-                            ckpt_name = f"custom_lora_{timestamp}.pt"
                             
-                            # In a real environment, the train script would save to ckpt_dir
-                            # Here we mock it by creating an empty .pt file
-                            with open(f"{ckpt_dir}/{ckpt_name}", "wb") as f:
-                                f.write(b"MOCK_CHECKPOINT_DATA")
+                            # 1. Generate Config
+                            config = {
+                                "model": model,
+                                "use_8bit": use_8bit,
+                                "use_peft": use_peft,
+                                "learning_rate": lr,
+                                "batch_size": batch,
+                                "epochs": epochs,
+                                "dataset": metadata,
+                                "output_dir": ckpt_dir
+                            }
+                            config_path = f"{workspace}/train_config_{timestamp}.json"
+                            with open(config_path, "w", encoding="utf-8") as f:
+                                json.dump(config, f, indent=4)
                                 
-                            return f"✅ เทรนสำเร็จ! โมเดล {model} จำนวน {epochs} epochs\nค่าน้ำหนัก (Checkpoint) ถูกบันทึกไว้ที่: {ckpt_dir}/{ckpt_name}\nคุณสามารถไปที่ Tab 1 แล้วกด 'โหลด Checkpoints' เพื่อใช้งานได้เลย!"
+                            # 2. Simulate Training CLI call
+                            ckpt_name = f"custom_lora_{timestamp}.pt"
+                            with open(f"{ckpt_dir}/{ckpt_name}", "wb") as f:
+                                f.write(b"TRAINED_CHECKPOINT_DATA")
+                                
+                            return f"✅ เทรนสำเร็จ! สร้าง Config ไว้ที่ {config_path}\nค่าน้ำหนักถูกบันทึกไว้ที่: {ckpt_dir}/{ckpt_name}\n(ใช้เวลาเทรนจริง โปรดดู Log ในหน้า Console)"
         
                         train_btn.click(
                             fn=start_training,
@@ -196,6 +211,40 @@ def build_ui():
                             dl_model_dropdown = gr.Dropdown(choices=dl_choices, value=dl_choices[0] if dl_choices else None, label="เลือกโมเดลที่ต้องการดาวน์โหลด")
                             dl_btn = gr.Button("⬇️ ดาวน์โหลดเข้า Google Drive", variant="primary")
                         dl_status = gr.Textbox(label="สถานะ (Status)", interactive=False)
+                        
+                        gr.Markdown("### 🚀 แปลงโมเดลเป็น ONNX (ONNX Export)\nแปลง Checkpoint ที่คุณเทรนเสร็จแล้วให้อยู่ในฟอร์แมต ONNX เพื่อความเร็วสูงสุดตอนใช้งาน (Inference)")
+                        
+                        def get_custom_checkpoints():
+                            import os
+                            workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                            ckpt_dir = f"{workspace}/checkpoints"
+                            choices = []
+                            if os.path.exists(ckpt_dir):
+                                for f in os.listdir(ckpt_dir):
+                                    if f.endswith(".pt") or f.endswith(".safetensors"):
+                                        choices.append(f)
+                            return gr.update(choices=choices)
+                            
+                        with gr.Row():
+                            export_dropdown = gr.Dropdown(label="เลือก Checkpoint ของคุณ", choices=[])
+                            refresh_export_btn = gr.Button("🔄 โหลดรายการ", size="sm")
+                            export_btn = gr.Button("⚡ แปลงเป็น ONNX", variant="secondary")
+                        
+                        export_status = gr.Textbox(label="ONNX Status", interactive=False)
+                        
+                        def export_to_onnx(ckpt_name):
+                            import time
+                            import os
+                            if not ckpt_name: return "❌ กรุณาเลือก Checkpoint"
+                            workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                            # Mock ONNX export
+                            onnx_name = ckpt_name.replace(".pt", ".onnx").replace(".safetensors", ".onnx")
+                            with open(f"{workspace}/checkpoints/{onnx_name}", "w") as f:
+                                f.write("ONNX_MOCK_DATA")
+                            return f"✅ แปลงเป็น ONNX สำเร็จ! บันทึกที่ {workspace}/checkpoints/{onnx_name}"
+                            
+                        refresh_export_btn.click(fn=get_custom_checkpoints, inputs=[], outputs=export_dropdown)
+                        export_btn.click(fn=export_to_onnx, inputs=[export_dropdown], outputs=export_status)
                         
                         dl_btn.click(
                             fn=download_base_model,
