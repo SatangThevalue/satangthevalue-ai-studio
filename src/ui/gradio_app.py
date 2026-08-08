@@ -3,10 +3,19 @@ import random
 from src.services.tts_service import tts_service
 
 def generate_tts_ui(text, model_name, ref_audio, speed):
-    if not text:
-        return "Please enter text."
-    output_path = tts_service.generate_tts(text, model_name=model_name, ref_audio_path=ref_audio, speed=speed)
-    return output_path
+    try:
+        import torch
+        if not text:
+            return "Please enter text."
+        output_path = tts_service.generate_tts(text, model_name=model_name, ref_audio_path=ref_audio, speed=speed)
+        
+        # Phase 4: Memory Management - Clear GPU after inference
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
+        return output_path
+    except Exception as e:
+        return f"❌ Error during generation: {str(e)}"
 
 def get_random_script():
     scripts = [
@@ -112,29 +121,37 @@ def build_ui():
                                 status_output = gr.Textbox(label="สถานะการทำงาน (Status)", interactive=False, lines=4)
                                 
                         def process_and_enhance(mic_file, upload_file):
-                            input_file = upload_file if upload_file else mic_file
-                            if not input_file:
-                                return "❌ กรุณาอัปโหลดไฟล์ หรืออัดเสียงผ่านไมค์ก่อนครับ"
-                            
-                            from src.services.audio_service import audio_enhancer
-                            from src.services.dataset_service import dataset_service
-                            import time
-                            import os
-                            
-                            output_path = f"processed_audio/enhanced_{int(time.time())}.wav"
-                            
-                            # 1. Enhance Audio
-                            success, msg = audio_enhancer.process_audio(input_file, output_path)
-                            if not success:
-                                return msg
+                            try:
+                                import torch
+                                input_file = upload_file if upload_file else mic_file
+                                if not input_file:
+                                    return "❌ กรุณาอัปโหลดไฟล์ หรืออัดเสียงผ่านไมค์ก่อนครับ"
                                 
-                            # 2. Slice and Transcribe (Prepare for Fine-Tuning)
-                            workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
-                            final_input_for_whisper = f"{workspace_dir}/{output_path}"
-                            
-                            success_ds, msg_ds = dataset_service.prepare_dataset(final_input_for_whisper)
-                            
-                            return f"✅ {msg}\n✅ {msg_ds}"
+                                from src.services.audio_service import audio_enhancer
+                                from src.services.dataset_service import dataset_service
+                                import time
+                                import os
+                                
+                                output_path = f"processed_audio/enhanced_{int(time.time())}.wav"
+                                
+                                # 1. Enhance Audio
+                                success, msg = audio_enhancer.process_audio(input_file, output_path)
+                                if not success:
+                                    return msg
+                                    
+                                # 2. Slice and Transcribe (Prepare for Fine-Tuning)
+                                workspace_dir = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                                final_input_for_whisper = f"{workspace_dir}/{output_path}"
+                                
+                                success_ds, msg_ds = dataset_service.prepare_dataset(final_input_for_whisper)
+                                
+                                # Phase 4: Memory Management - Clear GPU after whisper processing
+                                if torch.cuda.is_available():
+                                    torch.cuda.empty_cache()
+                                
+                                return f"✅ {msg}\n✅ {msg_ds}"
+                            except Exception as e:
+                                return f"❌ System Error in Data Prep: {str(e)}"
         
                         process_btn.click(
                             fn=process_and_enhance,
