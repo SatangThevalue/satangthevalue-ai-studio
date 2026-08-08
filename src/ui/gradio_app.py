@@ -77,26 +77,43 @@ def build_ui():
                 gr.Markdown("### 🗣️ Zero-Shot Voice Cloning\nอัปโหลดเสียงต้นแบบของคุณสั้นๆ 10 วินาที จากนั้นพิมพ์ข้อความที่ต้องการให้ AI พูดแทนคุณ")
                 with gr.Row():
                     with gr.Column(scale=2):
-                        def get_available_models():
+                        def get_model_status_choices():
                             import os
                             from src.config import get_tts_model_names
-                            models = get_tts_model_names()
-                            models.append("LoRA-Custom-Voice (Your Voice)")
-                            
                             workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
                             ckpt_dir = f"{workspace}/checkpoints"
+                            
+                            models = []
+                            # 1. Base Models from Config
+                            for m in get_tts_model_names():
+                                model_path = f"{ckpt_dir}/{m}"
+                                if os.path.exists(model_path) and os.path.isdir(model_path):
+                                    models.append(f"✅ {m} [พร้อมใช้งาน]")
+                                else:
+                                    models.append(f"❌ {m} [ต้องดาวน์โหลดก่อน]")
+                            
+                            # 2. Custom Checkpoints
                             if os.path.exists(ckpt_dir):
                                 for f in os.listdir(ckpt_dir):
                                     if f.endswith(".pt") or f.endswith(".safetensors"):
-                                        models.append(f"{ckpt_dir}/{f}")
-                            return gr.update(choices=models)
+                                        models.append(f"🟢 {f} [โมเดลของคุณเอง]")
+                                        
+                            if not models:
+                                models.append("❌ ไม่มีโมเดลในระบบเลย")
+                                
+                            return models
+
+                        def get_available_models():
+                            choices = get_model_status_choices()
+                            return gr.update(choices=choices, value=choices[0] if choices else None)
                             
                         with gr.Row():
+                            # We can't call get_model_status_choices directly at module level because workspace might not be set.
+                            # We'll use a dummy init and update it on load.
                             from src.config import get_tts_model_names
-                            initial_models = get_tts_model_names()
-                            initial_models.append("LoRA-Custom-Voice (Your Voice)")
+                            initial_models = [f"❓ {m} (กดปุ่มเช็คสถานะ)" for m in get_tts_model_names()]
                             model_dropdown = gr.Dropdown(choices=initial_models, value=initial_models[0], label="เลือกโมเดล (Select Base Model)")
-                            refresh_model_btn = gr.Button("🔄 โหลด Checkpoints", size="sm")
+                            refresh_model_btn = gr.Button("🔄 เช็คสถานะโมเดล", size="sm")
                             refresh_model_btn.click(fn=get_available_models, inputs=[], outputs=model_dropdown)
                             
                         ref_audio_input = gr.Audio(label="อัปโหลดเสียงต้นแบบ (Reference Audio - 10s)", type="filepath")

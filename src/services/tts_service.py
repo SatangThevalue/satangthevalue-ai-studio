@@ -23,8 +23,17 @@ class F5TTSService:
         timestamp = int(time.time())
         output_path = f"{output_dir}/output_{timestamp}.wav"
         
+        # Clean model name if it contains UI emojis or statuses
+        clean_model_name = model_name
+        import re
+        # Remove emojis and bracketed text like "✅ F5-TTS Base [พร้อมใช้งาน]" -> "F5-TTS Base"
+        clean_model_name = re.sub(r'^[✅❌🟢❓]\s*', '', clean_model_name)
+        clean_model_name = re.sub(r'\s*\[.*?\]', '', clean_model_name)
+        clean_model_name = re.sub(r'\s*\(.*?\)', '', clean_model_name)
+        clean_model_name = clean_model_name.strip()
+        
         # Dynamic Model Routing & Custom Checkpoints
-        cli_command = "f5-tts_infer-cli" if "F5-TTS" in model_name else "cosyvoice-cli"
+        cli_command = "f5-tts_infer-cli" if "F5-TTS" in clean_model_name else "cosyvoice-cli"
         
         try:
             subprocess.run([cli_command, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -33,8 +42,8 @@ class F5TTSService:
             cmd = [cli_command, "--gen_text", text, "--output_dir", output_dir]
             
             # If model_name ends with .pt or .safetensors, it's a custom checkpoint
-            if model_name.endswith(".pt") or model_name.endswith(".safetensors"):
-                cmd.extend(["--ckpt_file", model_name])
+            if clean_model_name.endswith(".pt") or clean_model_name.endswith(".safetensors"):
+                cmd.extend(["--ckpt_file", clean_model_name])
                 
             if ref_audio_path:
                 cmd.extend(["--ref_audio", ref_audio_path])
