@@ -60,14 +60,8 @@ def download_base_model(model_name):
 
 def build_ui():
     import gradio as gr
-    # Apply a premium, modern UI theme
-    theme = gr.themes.Soft(
-        primary_hue="blue",
-        neutral_hue="slate",
-        font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"]
-    )
     
-    with gr.Blocks(title="SatangThevalue AI Studio", theme=theme, css="footer {visibility: hidden}") as demo:
+    with gr.Blocks(title="SatangThevalue AI Studio") as demo:
         gr.Markdown("# 🎙️ SatangThevalue AI Studio (Enterprise Edition)")
         gr.Markdown("แพลตฟอร์มสร้างและโคลนเสียง AI มาตรฐานพอดแคสต์ (End-to-End Voice Cloning & Fine-Tuning)")
         
@@ -544,5 +538,11 @@ def build_ui():
     return demo
 
 if __name__ == "__main__":
+    import gradio as gr
     demo = build_ui()
-    demo.launch(share=True, debug=True)
+    theme = gr.themes.Soft(
+        primary_hue="blue",
+        neutral_hue="slate",
+        font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"]
+    )
+    demo.launch(share=True, debug=True, theme=theme, css="footer {visibility: hidden}")
