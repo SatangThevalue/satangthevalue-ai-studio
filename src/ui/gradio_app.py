@@ -382,3 +382,7 @@ def build_ui():
                 delete_chunk_btn.click(fn=delete_audited_chunk, inputs=[chunk_dropdown], outputs=[audit_status, chunk_dropdown])
 
     return demo
+
+if __name__ == "__main__":
+    demo = build_ui()
+    demo.launch(share=True, debug=True)
