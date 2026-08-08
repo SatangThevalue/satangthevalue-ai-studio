@@ -57,9 +57,17 @@ def download_base_model(model_name):
         return f"❌ ระบบขัดข้อง: {str(e)}\nกรุณาตรวจสอบว่ามี Library 'huggingface_hub' ติดตั้งอยู่หรือไม่"
 
 def build_ui():
-    with gr.Blocks(title="SatangTheValue AI Studio TTS", theme=gr.themes.Soft()) as demo:
-        gr.Markdown("# 🎙️ SatangTheValue AI Studio")
-        gr.Markdown("แพลตฟอร์ม AI พอดแคสต์ระดับสตูดิโอ (รองรับ F5-TTS & CosyVoice) สร้างเสียงโคลนและล้างเสียงได้อย่างมืออาชีพ")
+    import gradio as gr
+    # Apply a premium, modern UI theme
+    theme = gr.themes.Soft(
+        primary_hue="blue",
+        neutral_hue="slate",
+        font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"]
+    )
+    
+    with gr.Blocks(title="SatangThevalue AI Studio", theme=theme, css="footer {visibility: hidden}") as demo:
+        gr.Markdown("# 🎙️ SatangThevalue AI Studio (Enterprise Edition)")
+        gr.Markdown("แพลตฟอร์มสร้างและโคลนเสียง AI มาตรฐานพอดแคสต์ (End-to-End Voice Cloning & Fine-Tuning)")
         
         with gr.Tabs():
             # TAB 1: Client / Generation
@@ -105,6 +113,38 @@ def build_ui():
                     inputs=[text_input, model_dropdown, ref_audio_input, speed_slider],
                     outputs=audio_output
                 )
+                
+            # TAB 1.5: Generation History (Premium UX/UI Feature)
+            with gr.TabItem("🗂️ 1.5 History (ประวัติการสร้าง)"):
+                gr.Markdown("### 🗂️ ประวัติเสียงที่คุณเคยสร้าง (Generation History)\nสามารถกลับมาฟังเสียง หรือดาวน์โหลดไฟล์เก่าๆ ที่เคยสร้างไว้ได้ที่นี่โดยไม่ต้องกดเจนใหม่ให้เสียเวลา")
+                
+                def load_history():
+                    import os
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    output_dir = f"{workspace}/outputs"
+                    if not os.path.exists(output_dir):
+                        return gr.update(choices=[])
+                    
+                    files = [f for f in os.listdir(output_dir) if f.endswith(".wav") or f.endswith(".mp3")]
+                    # Sort by newest first
+                    files.sort(key=lambda x: os.path.getmtime(os.path.join(output_dir, x)), reverse=True)
+                    return gr.update(choices=files)
+                    
+                def preview_history(filename):
+                    if not filename: return None
+                    import os
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    return f"{workspace}/outputs/{filename}"
+                
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        history_refresh_btn = gr.Button("🔄 โหลดประวัติ", variant="secondary")
+                        history_dropdown = gr.Dropdown(label="เลือกไฟล์ที่เคยสร้าง", choices=[])
+                    with gr.Column(scale=2):
+                        history_audio = gr.Audio(label="ฟังเสียงย้อนหลัง", interactive=False)
+                        
+                history_refresh_btn.click(fn=load_history, inputs=[], outputs=history_dropdown)
+                history_dropdown.change(fn=preview_history, inputs=[history_dropdown], outputs=history_audio)
                 
             # BACKOFFICE: Admin & Data Management
             with gr.TabItem("⚙️ 2. Backoffice (การจัดการระบบ)"):
