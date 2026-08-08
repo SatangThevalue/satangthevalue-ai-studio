@@ -23,7 +23,7 @@ class F5TTSService:
         timestamp = int(time.time())
         output_path = f"{output_dir}/output_{timestamp}.wav"
         
-        # Dynamic Model Routing
+        # Dynamic Model Routing & Custom Checkpoints
         cli_command = "f5-tts_infer-cli" if "F5-TTS" in model_name else "cosyvoice-cli"
         
         try:
@@ -31,6 +31,11 @@ class F5TTSService:
             
             # Construct actual inference command including reference audio if provided
             cmd = [cli_command, "--gen_text", text, "--output_dir", output_dir]
+            
+            # If model_name ends with .pt or .safetensors, it's a custom checkpoint
+            if model_name.endswith(".pt") or model_name.endswith(".safetensors"):
+                cmd.extend(["--ckpt_file", model_name])
+                
             if ref_audio_path:
                 cmd.extend(["--ref_audio", ref_audio_path])
                 
