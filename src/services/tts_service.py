@@ -33,7 +33,13 @@ class F5TTSService:
         clean_model_name = clean_model_name.strip()
         
         # Dynamic Model Routing & Custom Checkpoints
-        cli_command = "f5-tts_infer-cli" if "F5-TTS" in clean_model_name else "cosyvoice-cli"
+        # The trained checkpoints will have prefixes like F5TTSBase_lora_... or CosyVoiceBase_lora_...
+        if "f5" in clean_model_name.lower():
+            cli_command = "f5-tts_infer-cli"
+        elif "cosy" in clean_model_name.lower():
+            cli_command = "cosyvoice-cli"
+        else:
+            cli_command = "f5-tts_infer-cli" # Default Fallback
         
         try:
             subprocess.run([cli_command, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)

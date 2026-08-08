@@ -279,7 +279,10 @@ def build_ui():
                                 json.dump(config, f, indent=4)
                                 
                             # 2. Simulate Training CLI call
-                            ckpt_name = f"custom_lora_{timestamp}.pt"
+                            import re
+                            # Extract clean prefix from base model to prevent cross-model loading
+                            model_prefix = re.sub(r'[^A-Za-z0-9]', '', model)
+                            ckpt_name = f"{model_prefix}_lora_{timestamp}.pt"
                             with open(f"{ckpt_dir}/{ckpt_name}", "wb") as f:
                                 f.write(b"TRAINED_CHECKPOINT_DATA")
                                 
