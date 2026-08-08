@@ -282,4 +282,103 @@ def build_ui():
                 clear_dataset_btn.click(fn=clear_all_datasets, inputs=[], outputs=file_list_display)
                 log_refresh_btn.click(fn=view_logs, inputs=[], outputs=log_display)
 
+            # TAB 6: Dataset Auditor
+            with gr.TabItem("🔍 6. Dataset Auditor (ตรวจสอบข้อมูล)"):
+                gr.Markdown("### 🎧 ตรวจสอบและแก้ไข Dataset\nคุณสามารถเลือกไฟล์ที่ถูกหั่นแล้ว (Chunks) เพื่อฟังเสียง และตรวจสอบความถูกต้องของข้อความที่ AI ถอดความออกมา (หากผิด สามารถแก้ไขได้)")
+                
+                with gr.Row():
+                    chunk_dropdown = gr.Dropdown(label="เลือกไฟล์ที่ต้องการตรวจสอบ (Select Chunk)", choices=[])
+                    refresh_chunks_btn = gr.Button("🔄 โหลดรายการไฟล์ทั้งหมด", size="sm")
+                    
+                with gr.Row():
+                    chunk_audio = gr.Audio(label="ฟังเสียง (Audio Player)", interactive=False)
+                    with gr.Column():
+                        chunk_transcript = gr.Textbox(label="ข้อความที่ถอดความได้ (Transcription)", lines=3)
+                        with gr.Row():
+                            save_text_btn = gr.Button("💾 บันทึกการแก้ไขข้อความ", variant="primary", size="sm")
+                            delete_chunk_btn = gr.Button("🗑️ ลบไฟล์นี้ทิ้ง (เสียงเสีย)", variant="stop", size="sm")
+                
+                audit_status = gr.Textbox(label="สถานะ", interactive=False)
+                
+                def load_chunks():
+                    import os
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    metadata_path = f"{workspace}/dataset/metadata.csv"
+                    if not os.path.exists(metadata_path):
+                        return gr.update(choices=[])
+                    
+                    choices = []
+                    with open(metadata_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if "|" in line:
+                                choices.append(line.split("|")[0])
+                    return gr.update(choices=choices)
+                
+                def load_chunk_details(chunk_name):
+                    import os
+                    if not chunk_name:
+                        return None, ""
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    audio_path = f"{workspace}/dataset/{chunk_name}"
+                    metadata_path = f"{workspace}/dataset/metadata.csv"
+                    
+                    transcript = ""
+                    if os.path.exists(metadata_path):
+                        with open(metadata_path, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if line.startswith(f"{chunk_name}|"):
+                                    transcript = line.split("|", 1)[1].strip()
+                                    break
+                    
+                    return audio_path if os.path.exists(audio_path) else None, transcript
+                    
+                def save_transcript(chunk_name, new_text):
+                    import os
+                    if not chunk_name or not new_text:
+                        return "❌ กรุณาเลือกไฟล์และระบุข้อความ"
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    metadata_path = f"{workspace}/dataset/metadata.csv"
+                    
+                    if not os.path.exists(metadata_path):
+                        return "❌ ไม่พบไฟล์ metadata.csv"
+                        
+                    lines = []
+                    with open(metadata_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                        
+                    with open(metadata_path, "w", encoding="utf-8") as f:
+                        for line in lines:
+                            if line.startswith(f"{chunk_name}|"):
+                                f.write(f"{chunk_name}|{new_text}\n")
+                            else:
+                                f.write(line)
+                    return f"✅ บันทึกข้อความใหม่สำหรับ {chunk_name} เรียบร้อยแล้ว!"
+                    
+                def delete_audited_chunk(chunk_name):
+                    import os
+                    if not chunk_name:
+                        return "❌ กรุณาเลือกไฟล์ก่อน", gr.update()
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    audio_path = f"{workspace}/dataset/{chunk_name}"
+                    metadata_path = f"{workspace}/dataset/metadata.csv"
+                    
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
+                        
+                    if os.path.exists(metadata_path):
+                        lines = []
+                        with open(metadata_path, "r", encoding="utf-8") as f:
+                            lines = f.readlines()
+                        with open(metadata_path, "w", encoding="utf-8") as f:
+                            for line in lines:
+                                if not line.startswith(f"{chunk_name}|"):
+                                    f.write(line)
+                                    
+                    return f"✅ ลบไฟล์ {chunk_name} ออกจากระบบและ Metadata แล้ว!", gr.update(value=None)
+                    
+                refresh_chunks_btn.click(fn=load_chunks, inputs=[], outputs=chunk_dropdown)
+                chunk_dropdown.change(fn=load_chunk_details, inputs=[chunk_dropdown], outputs=[chunk_audio, chunk_transcript])
+                save_text_btn.click(fn=save_transcript, inputs=[chunk_dropdown, chunk_transcript], outputs=audit_status)
+                delete_chunk_btn.click(fn=delete_audited_chunk, inputs=[chunk_dropdown], outputs=[audit_status, chunk_dropdown])
+
     return demo
