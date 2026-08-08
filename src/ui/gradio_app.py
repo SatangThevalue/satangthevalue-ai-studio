@@ -19,11 +19,37 @@ def get_random_script():
     return random.choice(scripts)
 
 def download_base_model(model_name):
-    import time
+    import subprocess
     import os
+    
     workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
-    time.sleep(2) # Simulate download time
-    return f"✅ สำเร็จ! โมเดล {model_name} ถูกดาวน์โหลดและบันทึกลงใน Google Drive ({workspace}/models_cache) เรียบร้อยแล้ว"
+    
+    # Map friendly names to HuggingFace repository IDs
+    repo_map = {
+        "F5-TTS Base": "SWivid/F5-TTS",
+        "CosyVoice-Base": "FunAudioLLM/CosyVoice-300M",
+        "WhisperX (Transcription)": "Systran/faster-whisper-large-v3"
+    }
+    
+    hf_repo = repo_map.get(model_name)
+    if not hf_repo:
+        return f"❌ ไม่พบข้อมูล Repository สำหรับโมเดล {model_name}"
+        
+    try:
+        # Run huggingface-cli to download the snapshot
+        # This will automatically respect the HF_HOME environment variable (Google Drive)
+        cmd = ["huggingface-cli", "download", hf_repo]
+        
+        # We use subprocess.Popen to run it synchronously and capture output
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        if process.returncode == 0:
+            return f"✅ สำเร็จ! ดาวน์โหลดโมเดล {model_name} จาก HuggingFace ลงใน Google Drive ({workspace}/models_cache) เรียบร้อยแล้วของจริง!\n\nLog: {process.stdout[:200]}..."
+        else:
+            return f"❌ เกิดข้อผิดพลาดในการดาวน์โหลด {model_name}:\n{process.stderr}"
+            
+    except Exception as e:
+        return f"❌ ระบบขัดข้อง: {str(e)}\nกรุณาตรวจสอบว่ามี Library 'huggingface_hub' ติดตั้งอยู่หรือไม่"
 
 def build_ui():
     with gr.Blocks(title="SatangTheValue AI Studio TTS", theme=gr.themes.Soft()) as demo:
