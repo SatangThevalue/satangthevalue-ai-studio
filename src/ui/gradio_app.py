@@ -166,5 +166,53 @@ def build_ui():
                     inputs=[dl_model_dropdown],
                     outputs=dl_status
                 )
+                
+            # TAB 5: File & Dataset Manager
+            with gr.TabItem("📁 5. File Manager (จัดการไฟล์)"):
+                gr.Markdown("### 🗑️ จัดการ Dataset และไฟล์เสียง\nคุณสามารถตรวจสอบหรือลบไฟล์เสียงที่ประมวลผลแล้ว และล้าง Dataset เก่าทิ้งเพื่อเริ่มโปรเจกต์ใหม่ได้จากหน้านี้")
+                
+                with gr.Row():
+                    refresh_btn = gr.Button("🔄 รีเฟรชรายการไฟล์ (Refresh)", size="sm")
+                    clear_dataset_btn = gr.Button("⚠️ ล้าง Dataset ทั้งหมด (Clear All Datasets)", variant="stop", size="sm")
+                
+                file_list_display = gr.Textbox(label="รายการไฟล์ในระบบ (System Files)", lines=10, interactive=False)
+                
+                def list_workspace_files():
+                    import os
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    output = []
+                    
+                    dataset_dir = f"{workspace}/dataset"
+                    if os.path.exists(dataset_dir):
+                        output.append("📂 Dataset (ข้อมูลสำหรับเทรน AI):")
+                        files = os.listdir(dataset_dir)
+                        output.extend([f"  - {f}" for f in files] if files else ["  (ไม่มีไฟล์)"])
+                    else:
+                        output.append("📂 Dataset: (ยังไม่ถูกสร้าง)")
+                        
+                    output.append("\n📂 Processed Audio (ไฟล์เสียงที่ล้างแล้ว):")
+                    audio_dir = f"{workspace}/processed_audio"
+                    if os.path.exists(audio_dir):
+                        files = os.listdir(audio_dir)
+                        output.extend([f"  - {f}" for f in files] if files else ["  (ไม่มีไฟล์)"])
+                    else:
+                        output.append("  (ยังไม่ถูกสร้าง)")
+                        
+                    return "\n".join(output)
+                    
+                def clear_all_datasets():
+                    import os
+                    import shutil
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    dataset_dir = f"{workspace}/dataset"
+                    
+                    if os.path.exists(dataset_dir):
+                        shutil.rmtree(dataset_dir)
+                        os.makedirs(dataset_dir, exist_ok=True)
+                        return "✅ ลบข้อมูล Dataset ทั้งหมด (ไฟล์หั่นเสียง และ metadata.csv) เรียบร้อยแล้ว!\nกรุณากดรีเฟรชเพื่อดูอัปเดต"
+                    return "❌ ไม่มีโฟลเดอร์ Dataset ให้ลบ"
+                
+                refresh_btn.click(fn=list_workspace_files, inputs=[], outputs=file_list_display)
+                clear_dataset_btn.click(fn=clear_all_datasets, inputs=[], outputs=file_list_display)
 
     return demo
