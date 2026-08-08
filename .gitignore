@@ -1,0 +1,37 @@
+# Python & environments
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Data and Outputs (Should be stored in Google Drive anyway)
+data/
+outputs/
+processed_audio/
+dataset/
+*.db
+*.sqlite3
+
+# Models
+models_cache/
+*.pt
+*.pth
+*.onnx
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
