@@ -3,6 +3,9 @@ import soundfile as sf
 import pyloudnorm as pyln
 import librosa
 from pedalboard import Pedalboard, Compressor, HighpassFilter, LowShelfFilter, HighShelfFilter
+from src.utils.logger import get_logger
+
+logger = get_logger("AudioService")
 
 class AudioEnhancer:
     def __init__(self):
@@ -32,8 +35,10 @@ class AudioEnhancer:
             final_output_path = f"{workspace_dir}/{output_path}"
             os.makedirs(os.path.dirname(final_output_path), exist_ok=True)
             sf.write(final_output_path, normalized_data, rate)
+            logger.info(f"Audio enhanced successfully. Target LUFS: {target_lufs}. Saved to {final_output_path}")
             return True, f"Audio enhanced and normalized successfully. Saved to {final_output_path}"
         except Exception as e:
+            logger.error(f"Audio enhancement failed: {str(e)}", exc_info=True)
             return False, f"Audio enhancement failed: {str(e)}"
 
 audio_enhancer = AudioEnhancer()

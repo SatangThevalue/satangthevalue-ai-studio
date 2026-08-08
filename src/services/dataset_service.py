@@ -1,5 +1,8 @@
 import os
 import time
+from src.utils.logger import get_logger
+
+logger = get_logger("DatasetService")
 
 class DatasetService:
     def prepare_dataset(self, audio_path: str):
@@ -15,17 +18,21 @@ class DatasetService:
         
         metadata_path = f"{dataset_dir}/metadata.csv"
         
-        print(f"Mock: Slicing and transcribing {audio_path} via WhisperX...")
+        logger.info(f"Mocking dataset preparation for: {audio_path}")
         time.sleep(3) # Simulate heavy WhisperX processing
         
         # Use timestamp to ensure chunk names are unique across different uploads
         uid = int(time.time())
         
         # Use "a" (append) mode instead of "w" (write/overwrite)
-        with open(metadata_path, "a", encoding="utf-8") as f:
-            f.write(f"chunk_{uid}_1.wav|สวัสดีครับ ยินดีต้อนรับเข้าสู่รายการ\n")
-            f.write(f"chunk_{uid}_2.wav|วันนี้เราจะมาพูดถึงเรื่องเทคโนโลยีเอไอ\n")
-            
-        return True, f"Dataset prepared and APPENDED successfully! Metadata updated at {metadata_path}"
+        try:
+            with open(metadata_path, "a", encoding="utf-8") as f:
+                f.write(f"chunk_{uid}_1.wav|สวัสดีครับ ยินดีต้อนรับเข้าสู่รายการ\n")
+                f.write(f"chunk_{uid}_2.wav|วันนี้เราจะมาพูดถึงเรื่องเทคโนโลยีเอไอ\n")
+            logger.info(f"Appended 2 chunks to {metadata_path}")
+            return True, f"Dataset prepared and APPENDED successfully! Metadata updated at {metadata_path}"
+        except Exception as e:
+            logger.error(f"Failed to write metadata: {str(e)}", exc_info=True)
+            return False, f"Metadata creation failed: {str(e)}"
 
 dataset_service = DatasetService()

@@ -212,7 +212,25 @@ def build_ui():
                         return "✅ ลบข้อมูล Dataset ทั้งหมด (ไฟล์หั่นเสียง และ metadata.csv) เรียบร้อยแล้ว!\nกรุณากดรีเฟรชเพื่อดูอัปเดต"
                     return "❌ ไม่มีโฟลเดอร์ Dataset ให้ลบ"
                 
+                gr.Markdown("### 📜 System Logs (บันทึกการทำงานของระบบ)")
+                with gr.Row():
+                    log_refresh_btn = gr.Button("🔄 รีเฟรช Logs", size="sm")
+                log_display = gr.Textbox(label="System Logs", lines=15, interactive=False)
+                
+                def view_logs():
+                    import os
+                    from datetime import datetime
+                    workspace = os.environ.get("APP_WORKSPACE_DIR", "./data")
+                    date_str = datetime.now().strftime("%Y-%m-%d")
+                    log_file = f"{workspace}/logs/app_{date_str}.log"
+                    
+                    if not os.path.exists(log_file):
+                        return "ไม่มีประวัติ Log สำหรับวันนี้"
+                    with open(log_file, "r", encoding="utf-8") as f:
+                        return f.read()[-5000:] # Return last 5000 chars to prevent UI freeze
+                
                 refresh_btn.click(fn=list_workspace_files, inputs=[], outputs=file_list_display)
                 clear_dataset_btn.click(fn=clear_all_datasets, inputs=[], outputs=file_list_display)
+                log_refresh_btn.click(fn=view_logs, inputs=[], outputs=log_display)
 
     return demo

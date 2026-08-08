@@ -1,6 +1,9 @@
 import time
 import os
 import subprocess
+from src.utils.logger import get_logger
+
+logger = get_logger("TTSService")
 
 class F5TTSService:
     def __init__(self):
@@ -36,10 +39,15 @@ class F5TTSService:
             
             with open(output_path, "wb") as f:
                 f.write(b"RIFF\x00\x00\x00\x00WAVEfmt ")
+            logger.info(f"TTS generated successfully at {output_path}")
             return output_path
             
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Inference process failed: {e.stderr}", exc_info=True)
+            return None
         except FileNotFoundError:
-            print(f"Warning: {cli_command} not found. Mocking {model_name} generation for: '{text}'")
+            logger.warning(f"CLI {cli_command} not found. Mocking {model_name} generation for: '{text}'")
+            return output_path
             time.sleep(2)
             with open(output_path, "wb") as f:
                 f.write(b"RIFF\x00\x00\x00\x00WAVEfmt ")
